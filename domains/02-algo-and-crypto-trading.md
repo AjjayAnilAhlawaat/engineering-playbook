@@ -27,7 +27,7 @@ Load this domain overlay alongside the active lifecycle playbook (`playbooks/01.
 
 ## Phase 03: Exchange API, WebSocket, Rate-Limit & Signing Middleware
 - **Consensus Standards:**
-  - **Deterministic `ClOrdID` Idempotency:** Stamp every outbound order with a deterministic client order ID (`ClOrdID` derived from `strategy_id + signal_id + symbol + side`). On any HTTP 5xx or timeout, **query order status by `ClOrdID` first**—never blindly re-POST.
+  - **Deterministic `ClOrdID` Idempotency & Venue Length Constraints:** Stamp every outbound order with a deterministic client order ID (`ClOrdID` derived from `strategy_id + signal_id + intent_nonce` truncated/hashed to exchange charset limits of `<= 36` alphanumeric/hyphen chars so cancel-replace or re-entry orders never collide with historical IDs). Enforce NTP clock-sync checks and tight `recvWindow` bounds on signed requests. On any HTTP 5xx or timeout, **query order status by `ClOrdID` first**—never blindly re-POST.
   - **Weighted Token-Bucket Traffic Shaping & Priority Shedding:** Track exchange rate-limit headers dynamically; above 80% bucket utilization, shed non-critical reads and reserve quota exclusively for order cancellations and risk-reducing trades.
   - **WebSocket Sequence Continuity & Jittered Backoff:** Verify `seq_id == prev_seq_id + 1` on every L2 book update; on any gap, immediately invalidate the local book, halt quoting, and pull a fresh REST snapshot. Use jittered exponential backoff on reconnect.
   - **Least-Privilege Signing Isolation:** Isolate HMAC/Ed25519 signing keys in a dedicated adapter with **withdrawal permissions disabled**; default to `TRADING_ENV=paper` unless both `--mode live` and `CONFIRM_LIVE_TRADING=YES` are set.
@@ -56,7 +56,7 @@ Load this domain overlay alongside the active lifecycle playbook (`playbooks/01.
 
 ## Phase 06: Kill-Switch, Cancel-on-Disconnect & Live Reconciliation Ops
 - **Consensus Standards:**
-  - **Exchange-Native Cancel-on-Disconnect (COD) + Out-of-Band Watchdog:** Enable exchange-level session COD (dead-man's switch) and run an independent watchdog process that cancels all open orders and flattens/halts if daily drawdown (`> X%`), consecutive API errors (`>= 3`), or spread/slippage bounds trip.
+  - **Exchange-Native Cancel-on-Disconnect (COD) + `cancelAllAfter` Heartbeat + Watchdog:** Enable both WebSocket session-drop COD and explicit `cancelAllAfter` dead-man's countdown heartbeats refreshed continuously by the execution loop and verified on reconnect. Run an independent out-of-band watchdog process that cancels all open orders and flattens/halts if daily drawdown (`> X%`), consecutive API errors (`>= 3`), or spread/slippage bounds trip.
   - **Continuous Exchange-as-Truth Reconciliation:** Reconcile local `PENDING`/`FILLED` ledger state against exchange REST/drop-copy open orders, positions, and balances on startup, reconnect, and periodic intervals—treating the **exchange ledger as the source of truth**.
 - **Hard Bans:**
   - **NO** relying solely on in-process `SIGINT`/`SIGTERM` hooks to cancel resting orders (fails on `SIGKILL`, OOM, or network partition).

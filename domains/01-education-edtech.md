@@ -26,7 +26,7 @@ Load this domain overlay alongside the active lifecycle playbook (`playbooks/01.
 ## Phase 03: Middleware, Student Privacy (COPPA/FERPA) & Role APIs
 - **Consensus Standards:**
   - **Four-Role RBAC + `ParentChild` Consent Bridge:** Enforce strict server-side boundaries across `Student`, `Tutor/Teacher`, `Parent/Guardian`, and `TenantAdmin`. Validate parent reads against a verified `ParentChild` bridge table (blocking IDOR on `studentId`).
-  - **Zero-Retention Minor Privacy (COPPA/FERPA/GDPR-K):** Strip third-party ad/behavioral trackers on student routes. Enforce zero-data-retention (no model training on student photos/prompts) on all OCR/LLM API calls.
+  - **Zero-Retention Minor Privacy (COPPA 2026 / FERPA / GDPR-K):** Strip third-party ad/behavioral trackers on student routes. Enforce a published written deletion schedule prohibiting indefinite storage of minor records, treat voiceprints/faceprints as protected biometric PI (FTC COPPA Rule § 312.10), require written zero-training/security assurances from OCR/LLM vendors, and obtain separate verifiable parental consent for any non-operational third-party disclosures.
   - **Direct Presigned Evidence Uploads:** Upload handwritten homework photos via short-lived presigned storage URLs partitioned by `/tenant_id/pod_id/student_id/` and process OCR asynchronously on background queues.
 - **Hard Bans:**
   - **NO** synchronous OCR/vision grading inside the HTTP request thread (causes mobile upload timeouts).

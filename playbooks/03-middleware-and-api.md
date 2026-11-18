@@ -14,12 +14,14 @@
 3. **Session-Derived Tenant Scoping (Zero Trust on Request IDs):** Derive `userId`, `tenantId`, and `role` strictly from the verified server session—never from client request bodies or query strings. Every single-record read, update, or delete must include `tenantId`/`userId` in the query predicate (`where: { id, tenantId: session.tenantId }`).
 4. **Three-State Idempotency Keys & Multi-Tier Rate Limiting:** Require `Idempotency-Key` headers on state-mutating `POST`/`PATCH` routes, scoped to `(tenant_id, user_id, route, key)` with three states (`in_flight` atomic lock returning `409`/`425`, `completed` 24h response replay, and canonical request payload hash check). Apply burst-capped rate limits (IP + user/tenant) returning `429` with `Retry-After`.
 5. **RFC 9457 Problem Details & Raw-Byte Webhook Verification:** Emit uniform `application/problem+json` error envelopes (`type`, `title`, `status`, `detail`, `instance`, plus `X-Request-Id`) with zero stack-trace or SQL leakage. For webhooks, consume raw request bytes before JSON parsing, verify HMAC-SHA256 signatures via `crypto.timingSafeEqual`, enforce replay timestamp tolerances, and deduplicate `event_id` atomically.
+6. **Agent & MCP Tool Boundaries (OWASP Agentic / MCP Top 10):** Treat external MCP tool manifests, retrieved text, and runtime tool responses as untrusted data (context isolation). Pin hashed/signed tool schemas against runtime changes, route agent tool calls through deterministic API policy middleware with least-privilege read/write/execute capability grants (never system-prompt-only checks), and block unapproved cross-tool escalation.
 
 ## 3. Hard Bans
 - **NO** raw framework route handlers bypassing the authenticated/validated route factory, and no `if (!secret) return true` dev fallbacks.
 - **NO** bare `findUnique({ where: { id: req.params.id } })` queries on user/tenant resources without session ownership predicates (IDOR/BOLA).
 - **NO** passing unvalidated `req.body` or `.passthrough()` schemas into ORM `create`/`update` calls (Mass Assignment).
 - **NO** JSON body parsing prior to webhook HMAC verification or using `===` instead of `timingSafeEqual` on signatures.
+- **NO** passing unvalidated MCP/tool outputs as trusted system instructions or issuing broad wildcard tokens to external MCP servers.
 - **NO** modifying `middleware/`, `webhooks/`, or `contract/` auth rules without explicit human review.
 
 ## 4. Antigravity Execution Loop (Skills & Subagents)
