@@ -1,27 +1,34 @@
 # 03. Middleware, API Contracts & Auth Boundaries Playbook
 
+*Synthesized from Dual-Agent Consensus: **Craft Experts** (Stripe API Design, OWASP API Security Top 10, RFC 9457 Problem Details, Post-CVE-2025-29927 Defense-in-Depth) + **AI-Native Practitioners** (Wrapper-First Route Factories, Contract-First OpenAPI/Zod/TypeBox, Session-Derived BOLA Scoping).*
+
+---
+
 ## 1. Trigger & Scope
-- **Load When:** Designing or modifying REST/GraphQL/tRPC/Server Action endpoints, request middleware, authentication/authorization, webhooks, or third-party API integrations.
+- **Load When:** Designing or modifying REST/GraphQL/tRPC/Server Action endpoints, edge/framework middleware, authentication/authorization, webhooks, or third-party API integrations.
 - **Skip When:** Pure UI styling or internal domain logic with no boundary changes.
 
-## 2. Researched Best Practices (Core Standards)
-1. **Contract-First Schema Validation at Every Ingress:** Validate and parse 100% of untrusted inputs (`body`, `query`, `params`, `headers`, webhook payloads) at the boundary using runtime schemas (e.g., Zod, TypeBox, OpenAPI) before passing typed data to domain services.
-2. **Explicit Auth & Tenant Isolation in Middleware:** Enforce authentication and tenant/resource-level authorization (RBAC/ABAC) centrally in middleware or guard wrappers—never rely on the frontend hiding a button.
-3. **Idempotency & Rate Limiting on Mutations:** All state-mutating and payment/webhook endpoints must enforce rate limiting and support idempotency keys (or deduplication IDs) so network retries never double-charge or duplicate records.
-4. **Uniform, Non-Leaking Error Envelopes:** Return structured error responses (`{ error: { code, message, requestId } }`) with accurate HTTP status codes. Log full stack traces internally with `requestId`, but never leak stack traces or raw SQL errors to clients.
+## 2. Dual-Agent Consensus Standards (Craft + Practitioner)
+1. **Wrapper-First Route Factories & Defense-in-Depth Auth (Never Middleware-Only):** Never rely on edge/Next.js middleware alone as the sole security perimeter (preventing CVE-2025-29927-style header bypasses). Strip untrusted internal headers (`x-middleware-*`, spoofed `x-forwarded-*`) at ingress, and register all endpoints through typed route factories (`createProtectedRoute(schema, handler)`) that re-verify session, role (**BFLA**), and resource ownership (**BOLA**) inside the handler/data boundary.
+2. **Strict Allowlist Schema Validation at Every Ingress:** Define schemas in `/contract/openapi.yaml` or colocated Zod (`.strict()`) / TypeBox (`additionalProperties: false`) schemas before writing handler code. Parse `body`, `query`, `params`, and headers at the boundary and pass only validated DTOs to services.
+3. **Session-Derived Tenant Scoping (Zero Trust on Request IDs):** Derive `userId`, `tenantId`, and `role` strictly from the verified server session—never from client request bodies or query strings. Every single-record read, update, or delete must include `tenantId`/`userId` in the query predicate (`where: { id, tenantId: session.tenantId }`).
+4. **Three-State Idempotency Keys & Multi-Tier Rate Limiting:** Require `Idempotency-Key` headers on state-mutating `POST`/`PATCH` routes, scoped to `(tenant_id, user_id, route, key)` with three states (`in_flight` atomic lock returning `409`/`425`, `completed` 24h response replay, and canonical request payload hash check). Apply burst-capped rate limits (IP + user/tenant) returning `429` with `Retry-After`.
+5. **RFC 9457 Problem Details & Raw-Byte Webhook Verification:** Emit uniform `application/problem+json` error envelopes (`type`, `title`, `status`, `detail`, `instance`, plus `X-Request-Id`) with zero stack-trace or SQL leakage. For webhooks, consume raw request bytes before JSON parsing, verify HMAC-SHA256 signatures via `crypto.timingSafeEqual`, enforce replay timestamp tolerances, and deduplicate `event_id` atomically.
 
 ## 3. Hard Bans
-- **NO** unvalidated `req.body` or `as SomeType` type assertions on external API/webhook payloads.
-- **NO** business logic or raw multi-step database transactions inside route handlers/middleware (delegate to deep service modules).
-- **NO** secrets, API keys, or PII logged in plaintext or exposed to client bundles.
+- **NO** raw framework route handlers bypassing the authenticated/validated route factory, and no `if (!secret) return true` dev fallbacks.
+- **NO** bare `findUnique({ where: { id: req.params.id } })` queries on user/tenant resources without session ownership predicates (IDOR/BOLA).
+- **NO** passing unvalidated `req.body` or `.passthrough()` schemas into ORM `create`/`update` calls (Mass Assignment).
+- **NO** JSON body parsing prior to webhook HMAC verification or using `===` instead of `timingSafeEqual` on signatures.
+- **NO** modifying `middleware/`, `webhooks/`, or `contract/` auth rules without explicit human review.
 
 ## 4. Antigravity Execution Loop (Skills & Subagents)
-1. **Design Contract:** Load `api-and-interface-design` and `source-driven-development` to define request/response schemas and error codes before writing handler code.
-2. **Test Boundary First:** Load `tdd` to write integration tests covering happy path, 400 validation failure, 401/403 auth failure, and idempotency/retry behavior.
-3. **Security Audit:** Run `security-auditor` (or `gstack-cso`) on auth, webhook signature verification, and tenant boundary changes.
+1. **Contract First:** Load `api-and-interface-design` and `source-driven-development` to define strict input/output schemas and RFC 9457 error types.
+2. **Negative Boundary Test Matrix First (`tdd`):** Write integration tests covering: (a) `401` unauthenticated, (b) `403`/`404` cross-tenant IDOR/BOLA probe, (c) `400`/`422` malformed or unknown field injection, (d) `409`/`400` duplicate or mismatched `Idempotency-Key`, and (e) `401` invalid webhook HMAC.
+3. **Security Audit:** Run `security-auditor` (`gstack-cso`) on all auth, webhook, and tenant-scoping diffs.
 
 ## 5. Definition of Done (Verification Gate)
-- Boundary schemas validate all inputs, unauthorized/malformed requests are rejected with tested status codes, and handler code delegates business rules cleanly to backend services.
+- Endpoint is registered via the typed route factory, enforces `.strict()` input/output schemas, scopes all queries by `session.tenantId`, emits RFC 9457 errors with `X-Request-Id`, and passes the 5-case Negative Boundary Test Matrix.
 
 ## 6. Scar-Tissue Log
-- *(Append real API/middleware lessons here via `/learn`)*
+- *(Append real API, auth, and webhook lessons here via `/learn`)*

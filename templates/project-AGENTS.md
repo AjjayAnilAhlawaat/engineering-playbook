@@ -1,7 +1,10 @@
 ## Agent skills & Engineering Playbook Router
 
-### Central Playbook (Load On-Demand by Phase)
-Keep context lean—load only the playbook matching your current task from `~/engineering-playbook/playbooks/`:
+### 1. Active Domain Overlay (Pick One Per Project)
+- **Domain Category:** `~/engineering-playbook/domains/01-education-edtech.md` *(or `02-algo-and-crypto-trading.md` / `03-home-bakery-and-drops.md`)*
+
+### 2. Lifecycle Phase Playbook (Load On-Demand by Task)
+Keep context lean—load only the phase playbook matching your current work from `~/engineering-playbook/playbooks/`:
 - **Brainstorming & Specs:** `01-brainstorm-and-spec.md`
 - **Frontend & UI/UX:** `02-frontend-ui-ux.md` (plus this repo's `DESIGN.md`)
 - **Middleware, APIs & Auth:** `03-middleware-and-api.md`
@@ -9,7 +12,7 @@ Keep context lean—load only the playbook matching your current task from `~/en
 - **Positioning, Pricing & GTM:** `05-position-market-sell.md`
 - **Launch, Monitoring & Support:** `06-launch-support-and-ops.md`
 
-### Project-Specific Context
+### 3. Project-Specific Context
 - **Issue tracker:** `.scratch/<feature>/` (or `docs/agents/issue-tracker.md`)
 - **Domain glossary & ADRs:** `GLOSSARY.md` and `docs/adr/`
 - **Design & motion spec:** `DESIGN.md`

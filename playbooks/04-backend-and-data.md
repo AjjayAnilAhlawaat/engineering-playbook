@@ -1,29 +1,35 @@
-# 04. Backend Architecture, Deep Modules & Data Playbook
+# 04. Backend Architecture, Deep Modules & Data Layer Playbook
+
+*Synthesized from Dual-Agent Consensus: **Craft Experts** (John Ousterhout's Deep Modules, Eric Evans DDD Bounded Contexts, Expand-and-Contract Zero-Downtime Migrations, Transactional Outbox) + **AI-Native Practitioners** (`mattpocock/skills` `codebase-design`, `tdd`, `domain-modeling`, `diagnosing-bugs`, PGlite/Testcontainers sub-second loops).*
+
+---
 
 ## 1. Trigger & Scope
-- **Load When:** Writing core domain services, state machines, database schemas, SQL/ORM migrations, caching, or background workers/queues.
+- **Load When:** Designing core domain services, state machines, database schemas, SQL/ORM migrations, caching, or background workers/queues.
 - **Skip When:** Pure UI/CSS changes or static documentation edits.
 
-## 2. Researched Best Practices (Core Standards)
-1. **Deep Modules (Simple Interface, Rich Implementation):** Follow John Ousterhout's *Philosophy of Software Design*: modules should expose a narrow, self-explanatory interface while hiding complex state, retries, and storage mechanics internally.
-2. **Ubiquitous Domain Language (`GLOSSARY.md` & ADRs):** Name types, tables, and functions strictly after the domain vocabulary in `GLOSSARY.md`. Record non-obvious architectural trade-offs in `docs/adr/`.
-3. **Red-Green-Refactor TDD at Service Seams:** Write failing behavioral tests against the module's public interface (not internal mocks) before implementing domain logic. Use `@total-typescript/shoehorn` instead of unsafe `as` casts in TypeScript tests.
-4. **Expand-and-Contract Zero-Downtime Migrations:** Never rename or drop a live database column/table in a single deploy. Expand (add nullable column + dual-write), backfill, switch reads, and contract (drop old column in a later deploy).
-5. **Query Discipline & Transactional Integrity:** Wrap multi-write invariants in database transactions, index foreign keys and frequent filter columns, and eliminate N+1 query loops.
+## 2. Dual-Agent Consensus Standards (Craft + Practitioner)
+1. **Deep Modules & The Deletion Test (Ousterhout + `codebase-design`):** Pack rich business invariants, state transitions, and storage mechanics behind a narrow, self-explanatory public interface. Apply the **Deletion Test**: if removing a module deletes complexity rather than pushing it to callers, merge the shallow pass-through wrapper. Place a port/seam only where **at least two adapters exist** (e.g., production + test).
+2. **Ubiquitous Domain Language (`GLOSSARY.md` + Sparse ADRs):** Name modules, tables, events, and methods strictly after the domain nouns in `GLOSSARY.md` (never generic `Manager`/`Helper`/`Record` CRUD terms). Record architectural decisions in `docs/adr/` only when a choice is hard to reverse and involves a real trade-off.
+3. **Vertical-Slice TDD at Public Seams + In-Memory/PGlite Stand-Ins:** Write one failing behavioral test (`red`) against the module's public interface before writing minimal passing code (`green`). Never mock internal collaborators; use **PGlite** (in-process Postgres) or a shared **Testcontainer** with fast table truncation/transaction rollback for sub-second integration feedback, and mock only true external third parties (Stripe, Twilio).
+4. **Expand-and-Contract Zero-Downtime Schema Evolution:** Never couple breaking schema changes to a single deploy. Follow 4 phases: **Expand** (add nullable columns / `CREATE INDEX CONCURRENTLY`), **Dual-Write & Batch Backfill**, **Switch Reads & Verify Parity**, and **Contract** (drop old columns in a subsequent deploy). Always generate migrations via ORM CLI tools (`drizzle-kit generate` / `prisma migrate dev`)—never hand-edit migration journals.
+5. **Transactional Outbox & Idempotent Background Workers:** Never dual-write to a database and a job queue/message bus outside a single ACID transaction. Persist domain state + an `outbox` event atomically, and ensure every consumer/worker is idempotent (`ON CONFLICT DO NOTHING/UPDATE` or deduplication ledger) on retry.
 
 ## 3. Hard Bans
-- **NO** shallow pass-through wrappers that add indirection without hiding complexity.
-- **NO** destructive one-step database migrations (`DROP COLUMN`, `RENAME COLUMN`, locking full-table rewrites) on production tables without an expand/contract plan.
-- **NO** changing domain behavior without a failing test first (`tdd`).
+- **NO** shallow 1:1 pass-through service/repository wrappers or speculative single-implementation interfaces (`IFooService`).
+- **NO** destructive CLI commands (`prisma migrate reset`, `drizzle-kit drop`, `DROP COLUMN` in the same deploy) or hand-editing ORM snapshot/journal files.
+- **NO** table-locking DDL (`CREATE INDEX` without `CONCURRENTLY`, unbounded full-table `UPDATE` backfills in one transaction).
+- **NO** `await db.save(); await queue.publish()` non-transactional dual-writes.
+- **NO** theorizing on bug fixes without first writing a deterministic `<5s` reproduction command/test that exits red (`diagnosing-bugs`).
 
 ## 4. Antigravity Execution Loop (Skills & Subagents)
-1. **Model & Seam Design:** Load `domain-modeling` and `codebase-design` to align terminology with `GLOSSARY.md` and design deep module interfaces.
-2. **Test-First Implementation:** Load `tdd` (and `migrate-to-shoehorn` for TS) to run the red-green-refactor loop.
-3. **Migration & Perf Check:** Load `deprecation-and-migration` for schema changes and `performance-optimization` for query paths.
-4. **Pre-Merge Review:** Run `code-review` (or `gstack-review`) to check standards and spec compliance in parallel.
+1. **Domain & Seam Design:** Load `domain-modeling` and `codebase-design` (plus active `domains/<category>.md`) to align `GLOSSARY.md` and lock the deep module interface.
+2. **Red-Green-Refactor Loop:** Load `tdd` (and `migrate-to-shoehorn` for TypeScript partial test data) to implement one vertical slice at a time using targeted single-test commands.
+3. **Migration Safety Check:** Load `deprecation-and-migration` to print the planned table/index diff and verify N-1 backward compatibility before generating migrations.
+4. **Parallel Code Review:** Run `code-review` (`gstack-review`) to audit standards and spec compliance before merge.
 
 ## 5. Definition of Done (Verification Gate)
-- All unit/integration tests pass (`gstack-verify`), module interfaces are narrow and documented in `GLOSSARY.md`/`docs/adr/` if architectural, and migrations are backward-compatible.
+- Module passes the Deletion Test, public seam tests pass in `<5s`, migrations pass N-1 compatibility and lock-safety checks, outbox/worker idempotency is proven under replay tests, and `GLOSSARY.md`/`docs/adr/` are in sync.
 
 ## 6. Scar-Tissue Log
-- *(Append real backend/database lessons here via `/learn`)*
+- *(Append real backend, domain, and database lessons here via `/learn`)*

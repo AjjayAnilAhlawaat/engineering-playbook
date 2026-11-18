@@ -1,31 +1,37 @@
 # 06. Launch, Observability & Customer Support Loop Playbook
 
-## 1. Trigger & Scope
-- **Load When:** Preparing a production release, configuring CI/CD, adding logging/metrics/alerts, verifying a live deployment, or triaging customer support tickets and production bugs.
-- **Skip When:** Early local prototyping prior to production readiness.
+*Synthesized from Dual-Agent Consensus: **Craft Experts** (Charity Majors / Honeycomb Wide-Event Observability, Google SRE RED/USE & Multi-Window Burn-Rate Alerting, Progressive Delivery) + **AI-Native Practitioners** (`gstack-ship`, `gstack-land-and-deploy`, `gstack-canary`, EvalOps Golden Datasets, "Rule of 3" Scar-Tissue Promotion Ladder).*
 
-## 2. Researched Best Practices (Core Standards)
-1. **Automated Pre-Flight & Release Gates:** Every release must pass typechecking, linting, unit/integration tests, and build verification in CI before merge. Maintain a rollback path (or feature flag kill-switch) for every high-risk change.
-2. **Structured RED + Business Telemetry:** Emit structured JSON logs with a correlation `requestId` and `tenantId`/`userId` (without PII). Track Rate, Errors, and Duration (RED metrics) on critical user flows (signup, core action, checkout) plus token/latency metrics on any LLM calls.
-3. **Post-Deploy Canary Verification:** Never treat "CI green" as "production healthy." Inspect live production routes, console errors, and error rates immediately after deploy.
-4. **The Support-to-Scar-Tissue Loop:** Every customer-reported bug or production incident follows a strict 4-step closure:
-   1. Reproduce and diagnose root cause (`diagnosing-bugs`).
-   2. Write a failing automated regression test (`tdd`) that proves the bug.
-   3. Ship the minimal fix and verify in production.
-   4. Append a 1-line preventive rule to the relevant playbook's **Scar-Tissue Log** (and update docs via `gstack-document-release`) so the agent never re-introduces that class of bug.
+---
+
+## 1. Trigger & Scope
+- **Load When:** Preparing a production release, configuring CI/CD, adding logging/metrics/alerts, verifying a live deployment, running LLM evals, or triaging customer support tickets and production incidents.
+- **Skip When:** Early local exploration prior to staging/production integration.
+
+## 2. Dual-Agent Consensus Standards (Craft + Practitioner)
+1. **Observability-Driven Development via Wide Structured Events (Honeycomb + OpenTelemetry):** Emit one wide, structured JSON/OTel event per service hop containing high-cardinality context (`trace_id`, `request_id`, `tenant_id`, `user_id`, active feature flags, DB duration, error code, and LLM model/token/latency metadata) with automated PII/secret redaction. Surface a copyable `request_id` in user-facing error UI so support tickets link directly to traces.
+2. **SLO Error Budgets & Multi-Window Burn-Rate Alerts (Google SRE):** Track service **RED** (Rate, Errors, p50/p95/p99 Duration) and infrastructure **USE** (Utilization, Saturation, Errors) metrics anchored to explicit 30-day SLOs. Page humans only on multi-window error-budget burn rates (e.g., `14.4x` fast burn over 1h/5m) with a linked remediation runbook—never on brief 1-minute spikes or non-user-impacting CPU fluctuations.
+3. **Evidence-Bound Release & Exact-SHA Progressive Canary (`gstack-ship` + `gstack-canary`):** Merge `origin/<base>` before testing, enforce non-zero test execution (`tests_ran > 0`) and golden LLM eval gates (`evals/golden_dataset.jsonl` when prompts/agent code change), and verify live deployment by matching exact `MERGE_SHA`. Run a 10-minute post-deploy canary loop diffing console errors, p95 load time (`< 2x` baseline), 404s, and screenshots against the pre-deploy baseline, backed by runtime feature-flag kill switches.
+4. **Test-First Support Triage (`diagnosing-bugs` + EvalOps):** Never patch production bugs from guesswork. First commit an isolated reproduction test (or failing LLM trace in `golden_dataset.jsonl`) that fails on `HEAD` and passes after the fix (`regression_proof`). During SEV-1/2 incidents, restore service first via feature-flag kill switch or `git revert` before root-causing.
+5. **The "Rule of 3" Scar-Tissue Promotion Ladder (`gstack-learn` + `gstack-retro`):** Prevent `AGENTS.md` from rotting into a 1,000-line wall of warnings:
+   - *1st occurrence:* Fix root cause in the shared module + commit a regression test and log to `learnings.jsonl`.
+   - *2nd occurrence:* Tighten the relevant phase/domain playbook checklist (`playbooks/*.md` or `domains/*.md`).
+   - *3rd occurrence (or high-severity invariant):* Convert the rule into a **deterministic mechanical check** (ESLint/AST rule, pre-commit hook, schema constraint, or CI test) so the mistake becomes impossible to merge.
 
 ## 3. Hard Bans
-- **NO** deploying to production with failing tests, skipped typechecks, or unverified destructive migrations.
-- **NO** unstructured `console.log("here")` debugging left in production code or logging raw tokens/passwords/PII.
-- **NO** closing a customer bug report with a code patch alone—every bug fix must include a regression test.
+- **NO** unstructured `console.log`/`print` debugging in production or logging raw tokens, API keys, or PII.
+- **NO** inferring deploy success from PR merge or HTTP 200 without verifying the live `MERGE_SHA` and baseline-diffed canary check.
+- **NO** paging on-call engineers without an SLO burn-rate condition and a linked runbook.
+- **NO** closing a customer bug or LLM failure without an automated regression test or golden eval case.
+- **NO** bloating root `AGENTS.md` with one-off incident prose when a mechanical lint/test check or scoped playbook entry belongs instead.
 
 ## 4. Antigravity Execution Loop (Skills & Subagents)
-1. **Instrument:** Load `observability-and-instrumentation` and `ci-cd-and-automation` to wire structured telemetry, health checks, and CI quality gates.
-2. **Ship & Canary:** Run `shipping-and-launch` / `gstack-ship` to prepare the release, followed by `gstack-land-and-deploy` and `gstack-canary` to verify live production health.
-3. **Support & Triage:** When a bug is reported, invoke `diagnosing-bugs` + `tdd` to reproduce, test, and fix it, then run `/learn` (or `gstack-retro`) to codify the lesson into the playbook.
+1. **Instrument & Gate:** Load `observability-and-instrumentation` and `ci-cd-and-automation` to wire wide OTel events, `request_id` error surfaces, and CI gates.
+2. **Ship & Verify Live:** Run `shipping-and-launch` / `gstack-ship` -> `gstack-land-and-deploy` -> `gstack-canary` (plus active `domains/<category>.md` ops rules).
+3. **Support Incident Closure:** Run `diagnosing-bugs` + `tdd` to reproduce and fix customer issues, then run `/learn` and `gstack-retro` to promote recurring patterns up the Rule-of-3 ladder.
 
 ## 5. Definition of Done (Verification Gate)
-- Deployment is live, canary check confirms zero console/5xx regressions on core routes, alerts are active, and any resolved support incident has a corresponding regression test and scar-tissue entry.
+- Exact `MERGE_SHA` is live, 10-minute `gstack-canary` pass shows zero new console/5xx/latency regressions against baseline, wide OTel events with `request_id` are verified, and every resolved support issue has a committed regression test + scar-tissue classification.
 
 ## 6. Scar-Tissue Log
-- *(Append real production incident and support lessons here via `/learn`)*
+- *(Append real launch, observability, and support lessons here via `/learn`)*
